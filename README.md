@@ -1,27 +1,62 @@
-# Financial Expense Variance Dashboard (Excel + PowerPivot + VBA)
+# Operational Expense Variance Reporting & Dashboard (Excel + PowerPivot + VBA)
 
-This project is an automated financial dashboard built using:
-- Excel PowerPivot
-- DAX Measures
-- Slicers & PivotTables
-- Custom KPI cards
-- VBA automation (generate summary page, export PDF)
+OPEXReporting_Analysis is a structured Excel solution designed to automate monthly Operational Expense (OPEX) reporting.
+It streamlines financial data entry, variance calculation, and executive dashboarding using a combination of:
 
-## Features
-- Automated Summary Page (VBA)
-- Expense Variance Table with ABC costing
-- YTD Actual & Rolling 3M Measures (DAX)
-- Interactive dashboard using slicers
-- Export-to-PDF button
+VBA automation | PowerPivot Data Model | DAX measures | PivotTables, charts & slicers
 
-## Folder Structure
+The goal is to provide a real-world, enterprise-grade financial reporting workflow for FP&A and MIS teams.
 
-excel-files/ – Main XLSM files  
-vba-code/ – Exported VBA modules  
-documentation/ – Guides + screenshots  
+<img width="1128" height="734" alt="image" src="https://github.com/user-attachments/assets/c8f7ed41-0349-4225-986e-f70aeaec952a" />
 
-## How to Use
-1. Download `financial_dashboard.xlsm`
-2. Enable macros
-3. Refresh PowerPivot model
-4. Use slicers to explore data
+___
+
+### Key Features
+1. Monthly OPEX Input Files
+
+Standardized worksheets for each month (Jan–Dec 2025) for consistent expense data entry.
+
+2. Automated Summary Generation (VBA)
+
+A macro-driven engine produces a formatted, professional summary page :
+
+* KPI Block (Budget, Actual, Net Variance, Variance %)
+* Variance Table
+* Top 5 Variances Chart
+* Clean formatting, borders, colors, and alignment
+* Error handling + automatic sheet selection
+
+3. Integrated Data Model (PowerPivot)
+
+PowerPivot is used to model all monthly files into a single unified dataset.
+Includes DAX measures for:
+
+* YTD Actuals
+* YTD Budget
+* Variance $ and Variance %
+* Rolling 3-Month Actuals
+* Current month KPIs
+4. Interactive Dashboard
+
+Excel dashboard powered by:
+
+* PivotTables
+* Slicers
+* PivotCharts
+* DAX-based metrics
+
+5. Export to PDF
+
+A button-driven VBA module exports the summary sheet as a polished PDF report.
+
+----
+### Ideal For
+Finance teams, MIS reporting, budgeting, and monthly variance analysis.
+
+----
+### Repository Structure
+
+    /Input/              → Monthly OPEX input files (Jan–Dec 2025)
+    /Excel_Files/        → Main reporting model (.xlsm)
+    /Scripts/            → VBA modules (summary, formatting, PDF export)
+    /Output/             → Generated PDFs & dashboard screenshots
