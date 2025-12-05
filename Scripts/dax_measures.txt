@@ -1,0 +1,18 @@
+
+Total Budget := SUM(tblFinanceData[Budget])
+
+Total Actual := SUM(tblFinanceData[Actual])
+
+Variance $ := [Total Actual] - [Total Budget]
+
+Variance % := DIVIDE([Variance $], [Total Budget], 0)
+
+Total ABC Cost := SUM(tblFinanceData[ABC Cost])
+
+YTD Actual := CALCULATE([Total Actual], DATESYTD(tblFinanceData[Month]))
+
+Rolling 3M Actual :=
+CALCULATE([Total Actual], DATESINPERIOD(tblFinanceData[Month], MAX(tblFinanceData[Month]), -3, MONTH))
+
+
+

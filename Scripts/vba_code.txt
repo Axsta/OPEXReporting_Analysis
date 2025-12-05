@@ -1,0 +1,301 @@
+
+' VBA Macro: GenerateSummary
+
+Option Explicit
+
+Sub Generate_Financial_Summary()
+    On Error GoTo errHandler
+    Application.ScreenUpdating = False
+
+    Dim wb As Workbook: Set wb = ThisWorkbook
+    Dim wsLanding As Worksheet
+    Dim sumSht As Worksheet
+    Dim wsData As Worksheet
+    Dim lastSheet As Worksheet
+
+    ' --- locate sheets ---
+    On Error Resume Next
+    Set wsLanding = wb.Worksheets("Landing")
+    Set sumSht = wb.Worksheets("Summary")
+    On Error GoTo errHandler
+
+    If sumSht Is Nothing Then
+        MsgBox "Summary sheet not found. Please create a sheet named 'Summary'.", vbCritical
+        Exit Sub
+    End If
+
+    ' -------------------------
+    ' Determine which month's sheet to load
+    ' -------------------------
+    Dim requestedMonth As String
+    Dim foundSheet As Worksheet
+    Dim sht As Worksheet
+    Dim newestDate As Date: newestDate = #1/1/1900#
+    Dim candidate As Worksheet
+
+    requestedMonth = Trim(CStr(sumSht.Range("B5").Value))   ' User input e.g. "Nov 2025"
+    Set foundSheet = Nothing
+
+    ' If user specified a sheet name in B5 and it exists, use it
+    If requestedMonth <> "" Then
+        On Error Resume Next
+        Set foundSheet = wb.Worksheets(requestedMonth)
+        On Error GoTo errHandler
+    End If
+
+    If Not foundSheet Is Nothing Then
+        Set wsData = foundSheet
+    Else
+        ' Auto-detect newest sheet by parsing sheet names like "Nov 2025" (month year)
+        For Each sht In wb.Worksheets
+            If sht.Name <> "Landing" And sht.Name <> "Summary" And sht.Name <> "AllData" Then
+                On Error Resume Next
+                Dim dt As Date
+                dt = DateValue("1 " & sht.Name)       ' If name parseable, e.g. "Nov 2025"
+                If Err.Number = 0 Then
+                    If dt > newestDate Then
+                        newestDate = dt
+                        Set candidate = sht
+                    End If
+                End If
+                On Error GoTo errHandler
+            End If
+        Next sht
+
+        If Not candidate Is Nothing Then
+            Set wsData = candidate
+        Else
+            ' fallback to last worksheet in workbook
+            Set wsData = wb.Worksheets(wb.Worksheets.Count)
+        End If
+    End If
+
+    ' -------------------------
+    ' Header block A1:I6 (preserve)
+    ' -------------------------
+    With sumSht.Range("A1:I6")
+        .Clear
+        .Interior.Color = RGB(32, 55, 100)    ' dark navy
+        .Font.Color = vbWhite
+        .Font.Size = 12
+        .Font.Name = "Times New Roman"
+    End With
+
+    With sumSht.Range("B2")
+        .Value = "Expense Variance Report"
+        .Font.Size = 28
+        .Font.Bold = True
+        .HorizontalAlignment = xlLeft
+    End With
+
+    With sumSht.Range("B4")
+        .Value = "Summary for the month of " & wsData.Name
+        .Font.Size = 14
+        .Font.Bold = True
+        .HorizontalAlignment = xlLeft
+    End With
+
+    sumSht.Range("A3:A6").Font.Bold = True
+
+    ' -------------------------
+    ' Clear only the area below header (keeps A1:I6)
+    ' -------------------------
+    sumSht.Range("A8:Z500").Clear
+
+    ' -------------------------
+    ' KPI CARD B8:H12 (centered)
+    ' -------------------------
+    Dim budgetTotal As Double, actualTotal As Double, varianceValue As Double, variancePct As Double
+
+    On Error Resume Next
+    ' Adjust source columns if your data sheet places Budget/Actual in other columns.
+    budgetTotal = Application.WorksheetFunction.Sum(wsData.Range("D2:D200"))
+    actualTotal = Application.WorksheetFunction.Sum(wsData.Range("E2:E200"))
+    On Error GoTo errHandler
+
+    varianceValue = actualTotal - budgetTotal
+    If budgetTotal <> 0 Then variancePct = varianceValue / budgetTotal Else variancePct = 0
+
+    With sumSht.Range("B8:H12")
+        .Merge
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Font.Size = 12
+        .Font.Bold = True
+        .Interior.Color = RGB(235, 243, 255)
+        .Borders.LineStyle = xlContinuous
+        .Value = "Total Budget: $" & Format(budgetTotal, "#,##0") & vbCrLf & _
+                 "Total Actual: $" & Format(actualTotal, "#,##0") & vbCrLf & _
+                 "Net Variance: $" & Format(varianceValue, "#,##0") & " (" & Format(variancePct, "0.00%") & ")"
+    End With
+
+    ' -------------------------
+    ' SUMMARY TABLE HEADERS at B15:H15
+    ' -------------------------
+    Dim headers As Variant
+    headers = Array("Expense Item/Account", "Budget/Forecast", "Actual", _
+                    "Variance ($)", "Variance (%)", "ABC Cost", "Comments/Explanation")
+
+    Dim startRow As Long: startRow = 15
+    Dim colIdx As Long
+
+    For colIdx = 0 To UBound(headers)
+        With sumSht.Cells(startRow, 2 + colIdx)   ' B + colIdx
+            .Value = headers(colIdx)
+            .Font.Bold = True
+            .Interior.Color = RGB(0, 112, 192)
+            .Font.Color = vbWhite
+            .HorizontalAlignment = xlCenter
+            .Borders.LineStyle = xlContinuous
+        End With
+    Next colIdx
+
+    ' -------------------------
+    ' Create fixed expense rows (10 items) starting row 16
+    ' -------------------------
+    Dim expenseList As Variant
+    expenseList = Array("Salaries", "Outsourcing Fees", "IT Software/Licenses", _
+                        "Facilities Rent", "Utilities", "Fraud Losses", _
+                        "Regulatory Fines", "Travel & Meetings", "Training", "Marketing")
+
+    Dim r As Long: r = startRow + 1
+    Dim item As Variant
+    Dim wsName As String: wsName = wsData.Name   ' name used in formulas
+
+    For Each item In expenseList
+        ' Expense name in column B
+        sumSht.Cells(r, 2).Value = item
+        sumSht.Cells(r, 2).Font.Bold = True
+
+        ' VLOOKUPs: adjust the table range on the source sheet if your columns are different
+        sumSht.Cells(r, 3).Formula = "=IFERROR(VLOOKUP(B" & r & ",'" & wsName & "'!B:L,3,FALSE),0)"   ' Budget
+        sumSht.Cells(r, 4).Formula = "=IFERROR(VLOOKUP(B" & r & ",'" & wsName & "'!B:L,4,FALSE),0)"   ' Actual
+        sumSht.Cells(r, 5).Formula = "=D" & r & "-C" & r                                                   ' Variance $
+        sumSht.Cells(r, 6).Formula = "=IF(C" & r & "=0,0,(D" & r & "-C" & r & ")/C" & r & ")"            ' Variance %
+        sumSht.Cells(r, 7).Formula = "=IFERROR(VLOOKUP(B" & r & ",'" & wsName & "'!B:L,11,FALSE),0)"     ' ABC Cost
+        sumSht.Cells(r, 8).Formula = "=IFERROR(IF(LEN(VLOOKUP(B" & r & ",'" & wsName & "'!B:L,7,FALSE))=0,"""",VLOOKUP(B" & r & ",'" & wsName & "'!B:L,7,FALSE)),"""")" ' Comments
+
+        ' Apply borders on the row B:H
+        sumSht.Range(sumSht.Cells(r, 2), sumSht.Cells(r, 8)).Borders.LineStyle = xlContinuous
+
+        r = r + 1
+    Next item
+
+    ' Autofit columns B:H and set number formats
+    sumSht.Columns("B:B").ColumnWidth = 28
+    sumSht.Columns("C:D").NumberFormat = "#,##0"
+    sumSht.Columns("E").NumberFormat = "#,##0"
+    sumSht.Columns("F").NumberFormat = "0.00%"
+    sumSht.Columns("G").NumberFormat = "#,##0.00"
+    sumSht.Columns("H").NumberFormat = "@"
+    sumSht.Columns("B:H").AutoFit
+    
+
+
+    ' -------------------------
+    ' Add Chart starting at B27, not exceed column H
+    ' -------------------------
+    Dim dataStart As Long: dataStart = startRow + 1
+    Dim dataEnd As Long: dataEnd = r - 1
+    Dim countRows As Long: countRows = dataEnd - dataStart + 1
+
+    If countRows > 0 Then
+        Dim arr() As Variant
+        ReDim arr(1 To countRows, 1 To 2)  ' name, variance%
+        Dim idx As Long: idx = 0
+        Dim rr As Long
+        For rr = dataStart To dataEnd
+            idx = idx + 1
+            arr(idx, 1) = CStr(sumSht.Cells(rr, 2).Value)    ' Expense name
+            arr(idx, 2) = Val(sumSht.Cells(rr, 6).Value)     ' Var %
+        Next rr
+
+        ' simple selection sort to get top N
+        Dim a As Long, b As Long
+        For a = 1 To countRows - 1
+            For b = a + 1 To countRows
+                If arr(b, 2) > arr(a, 2) Then
+                    Dim tmpName As Variant, tmpVal As Variant
+                    tmpName = arr(a, 1): tmpVal = arr(a, 2)
+                    arr(a, 1) = arr(b, 1): arr(a, 2) = arr(b, 2)
+                    arr(b, 1) = tmpName: arr(b, 2) = tmpVal
+                End If
+            Next b
+        Next a
+
+        Dim topN As Long: topN = WorksheetFunction.Min(5, countRows)
+        Dim cats() As Variant, sBudget() As Variant, sActual() As Variant, sVar() As Variant
+        ReDim cats(1 To topN): ReDim sBudget(1 To topN): ReDim sActual(1 To topN): ReDim sVar(1 To topN)
+
+        Dim iTop As Long
+        For iTop = 1 To topN
+            cats(iTop) = arr(iTop, 1)
+            ' find row for this category in summary table
+            Dim foundRow As Long: foundRow = 0
+            For rr = dataStart To dataEnd
+                If sumSht.Cells(rr, 2).Value = cats(iTop) Then
+                    foundRow = rr
+                    Exit For
+                End If
+            Next rr
+            If foundRow > 0 Then
+                sBudget(iTop) = Val(sumSht.Cells(foundRow, 3).Value)
+                sActual(iTop) = Val(sumSht.Cells(foundRow, 4).Value)
+                sVar(iTop) = Val(sumSht.Cells(foundRow, 5).Value)
+            Else
+                sBudget(iTop) = 0
+                sActual(iTop) = 0
+                sVar(iTop) = 0
+            End If
+        Next iTop
+
+        Dim ch As ChartObject
+        For Each ch In sumSht.ChartObjects
+            ch.Delete
+        Next ch
+
+        Dim chartWidth As Double
+        chartWidth = sumSht.Range("B27:H27").Width
+
+        Dim chartObj As ChartObject
+        Set chartObj = sumSht.ChartObjects.Add( _
+            Left:=sumSht.Range("B27").Left, _
+            Top:=sumSht.Range("B27").Top, _
+            Width:=chartWidth, _
+            Height:=320)
+
+        With chartObj.Chart
+            .ChartType = xlColumnClustered
+            .SeriesCollection.NewSeries
+            .SeriesCollection(1).Values = sBudget
+            .SeriesCollection(1).XValues = cats
+            .SeriesCollection(1).Name = "Budget"
+
+            .SeriesCollection.NewSeries
+            .SeriesCollection(2).Values = sActual
+            .SeriesCollection(2).XValues = cats
+            .SeriesCollection(2).Name = "Actual"
+
+            .SeriesCollection.NewSeries
+            .SeriesCollection(3).Values = sVar
+            .SeriesCollection(3).XValues = cats
+            .SeriesCollection(3).Name = "Variance ($)"
+
+            .HasTitle = True
+            .ChartTitle.Text = "Top " & topN & " Variances - " & wsData.Name
+            .HasLegend = True
+            .Legend.Position = xlLegendPositionTop
+        End With
+
+    End If
+
+    Application.ScreenUpdating = True
+    MsgBox "Summary generated for " & wsData.Name, vbInformation
+    Exit Sub
+
+errHandler:
+    Application.ScreenUpdating = True
+    MsgBox "Error " & Err.Number & ": " & Err.Description, vbCritical
+End Sub
+
+
