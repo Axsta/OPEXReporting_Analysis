@@ -54,9 +54,21 @@ A button-driven VBA module exports the summary sheet as a polished PDF report.
 Finance teams, MIS reporting, budgeting, and monthly variance analysis.
 
 ----
+
 ### Repository Structure
 
     /Input/              → Monthly OPEX input files (Jan–Dec 2025)
     /Excel_Files/        → Main reporting model (.xlsm)
     /Scripts/            → VBA modules (summary, formatting, PDF export)
     /Output/             → Generated PDFs & dashboard screenshots
+
+
+---
+## Business Context
+Operational expense (OPEX) reporting requires accurate monthly tracking, variance analysis, and executive-ready summaries. Manual reporting increases errors and delays.
+
+---
+## Outcome
+- Automated monthly OPEX reporting
+- Reduced manual effort and reporting time
+- Improved visibility into cost variances for stakeholders
